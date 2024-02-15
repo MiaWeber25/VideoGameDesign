@@ -1,8 +1,8 @@
 EXE=first.exe
 SRC=first.cpp
-CFLAGS=-I/Library/Frameworks/SDL2.framework/Headers -D_THREAD_SAFE
-# -I/usr/local/include/SDL2
-#LIBS=-lSDL2
+CFLAGS=-I/opt/homebrew/include/SDL2 -D_THREAD_SAFE
+LIBS=-L/opt/homebrew/lib -lSDL2
+RPATH=-Wl,-rpath,/opt/homebrew/lib
 
-${EXE}:${SRC}
-	g++ ${CFLAGS} $< -o $@ -F/Library/Frameworks/ -framework SDL2
+${EXE}: ${SRC}
+	g++ ${CFLAGS} $< -o $@ ${LIBS} ${RPATH}
