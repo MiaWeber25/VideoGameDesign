@@ -92,26 +92,36 @@ class Sprite {
     }
 };
 
-/*class NPC: public Sprite {
+enum Move{UP, DOWN, RIGHT, LEFT};
+
+class Moveable {
     public:
-    NPC(): Sprite() {
+    virtual void doMove(Move m)=0; // Pure virtual class (interface class = JAVA)
+};
+
+class Player: public Sprite, public Moveable {
+    public:
+    Player(PrimordialGame *g): Sprite(g,"bot.bmp",0,0) {
 
     }
-    void updatePosition(float dt) {
-        vx += ax*dt; // gravity
-        vy += ay*dt;
-        x += vx*dt;  // velocity
-        y += vy*dt;
-        if (x > g->getW() || x < 0) vx *= -1;
-        if (y > g->getH() || y < 0) vy *= -1;
+    void doMove(Move m) {
+        if (m == UP) y-=10;
+        else if (m == DOWN) y+=10;
+        else if (m == LEFT) x-=10;
+        else if (m == RIGHT) x+=10;
     }
-};*/
+
+    void updatePosition(float dt) {
+        Sprite::updatePosition(dt); // call the superclass function
+    }
+};
 
 class Game: public PrimordialGame { // concrete instance of PrimordialGame
     SDL_Renderer *ren;
     int w,h;
     bool running;
     vector<Sprite*> sprites;
+    vector<Moveable*> players; // also has a vector of movable things
     public:
     Game(string name="Enpty Game", int newW=640, int newH=480) {
         w = newW;
@@ -132,18 +142,52 @@ class Game: public PrimordialGame { // concrete instance of PrimordialGame
         ren = SDL_CreateRenderer(window,-1,0); // my connection to my graphics card (needs to know what window to draw to)
         mm = new MediaManager(ren); // hand the MediaManager the needed renderer so it can create and store the texture
     }
+
     void add(Sprite *s) { sprites.push_back(s); }
+    void add(Player *p) { players.push_back(p); }
+
     const int getW() { return w; }
     const int getH() { return h; }
     SDL_Renderer *getRenderer() { // getter for ren
         return ren;
     }
+
+    void informPlayers(Move m) {
+        for (auto p: players) p->doMove(m);
+    }
+
     virtual void loop() {
         int count = 0;
         int lastTime = SDL_GetTicks();
         int firstTime = lastTime;
         float dt;
-        while (lastTime - firstTime < 20000) { //go for two seconds (on everyone's machine)
+        SDL_Event e;
+        bool done = false;
+        while (!done) { 
+            if (SDL_PollEvent(&e)) { // find out which event happened
+                if (e.type == SDL_WINDOWEVENT) {
+                    // here I could handle all window events
+                    if (e.window.event == SDL_WINDOWEVENT_CLOSE) {
+                        done = true; // the user wants to quit the game (window was closed)
+                    }
+                }
+                if (e.type == SDL_KEYDOWN) {
+                    if (e.key.keysym.sym == SDLK_a) informPlayers(LEFT);
+                    if (e.key.keysym.sym == SDLK_w) informPlayers(UP);
+                    if (e.key.keysym.sym == SDLK_s) informPlayers(DOWN);
+                    if (e.key.keysym.sym == SDLK_d) informPlayers(RIGHT);
+                    if(e.key.keysym.sym == SDLK_ESCAPE) done = true;
+                }
+                if (e.type == SDL_MOUSEMOTION) {
+                    if (abs(e.motion.xrel) > abs(e.motion.yrel)) {
+                        if (e.motion.xrel < 0) informPlayers(LEFT);
+                        else informPlayers(RIGHT);
+                    } else {
+                        if (e.motion.yrel < 0) informPlayers (UP);
+                        else informPlayers(DOWN); 
+                    }
+                }
+            }
             SDL_PumpEvents();
             SDL_RenderClear(ren);
             for (auto s:sprites) s->draw();
@@ -176,6 +220,9 @@ int main() {
         logo = new Sprite(g,"test.bmp", x,y, dx, dy, 0.0, 10.0);
         g->add(logo);
     }
+    Player *p = new Player(g);
+    g->add((Sprite*)p); // add a new player to the game (pay attention to order -> in front)
+    g->add((Player*)p);
     g->loop();
     delete logo;
     delete g;
